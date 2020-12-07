@@ -1,0 +1,238 @@
+---
+title: "Exploratory Data Analysis - Shruthi"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+```{r}
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(reshape2)
+```
+
+# Summary:
+
+The main goal for this question was to get a better understanding of what the distribution of the iowa caucus results dataset looked like, including looking at any patterns that may have been ocurring between people of different demographic qualities. I chose to look at the three demographic qualities of race, income, and age, as I thought these would best represent any patterns in the dataset. For all three qualities I found the counties of Iowa with the highest percentage of people of different groups of race, income, and age, and plotted the sum of their votes for each candidate in the first round. The results I obtained from the plots were representative of the results that can be found online of similar distribution patterns. The only slightly unexpected result was that those of old age were choosing to vote for Sanders more than we had expected due to most age trends in voting throughought the country. One thing I would like to add to the dataset is a possible linear regression for each candidate and the amount of votes they received in each situation.
+
+# Exploration/Cleaning
+
+Race Distribution Data Cleaning:
+```{r}
+raceDistr <- read_csv("IowaRaceDistribution.csv")
+raceDistr = raceDistr[-c(1:10),]
+raceDistr = raceDistr[-c(100:105),]
+raceDistr = select (raceDistr,c("county" = 1,"white" = X4,"black" = X6,"asian" = X10,"hispanic/latino" = X16))
+raceDistr$white <- as.numeric(sub("%","",raceDistr$white))/100
+raceDistr$black <- as.numeric(sub("%","",raceDistr$black))/100
+raceDistr$asian <- as.numeric(sub("%","",raceDistr$asian))/100
+raceDistr$`hispanic/latino` <- as.numeric(sub("%","",raceDistr$`hispanic/latino`))/100
+```
+
+Age Distribution Data Cleaning:
+```{r}
+ageDistr <- read_csv("ageDistr.csv")
+ageDistr = ageDistr[-c(1:8),]
+ageDistr = ageDistr[-c(100:105),]
+ageDistr = select (ageDistr,c("county" = 1,"total population" = X2,"population under age 65" = X4,"population over age 65" = X8))
+ageDistr$`population under age 65` <- as.numeric(sub(",","",ageDistr$`population under age 65`))
+ageDistr$`population over age 65` <- as.numeric(sub(",","",ageDistr$`population over age 65`))
+ageDistr$`total population` <- as.numeric(sub(",","",ageDistr$`total population`))
+ageDistr$`% population under age 65` <- ageDistr$`population under age 65`/ageDistr$`total population`
+ageDistr$`% population over age 65` <- ageDistr$`population over age 65`/ageDistr$`total population`
+```
+
+Income Distribution Data Cleaning:
+```{r}
+incomeDistr <- read_csv("incomeDistr.csv")
+incomeDistr = incomeDistr[-c(1:9),]
+incomeDistr = incomeDistr[-c(100:117),]
+incomeDistr = select (incomeDistr,c("county" = X1,X6,X7,X8,X9,X10,X11,X12,X13,X14,X15,X16))
+incomeDistr$X6 <- as.numeric(incomeDistr$X6)
+incomeDistr$X7 <- as.numeric(incomeDistr$X7)
+incomeDistr$X8 <- as.numeric(incomeDistr$X8)
+incomeDistr$X9 <- as.numeric(incomeDistr$X9)
+incomeDistr$X10 <- as.numeric(incomeDistr$X10)
+incomeDistr$X11 <- as.numeric(incomeDistr$X11)
+incomeDistr$X12 <- as.numeric(incomeDistr$X12)
+incomeDistr$X13 <- as.numeric(incomeDistr$X13)
+incomeDistr$X14 <- as.numeric(incomeDistr$X14)
+incomeDistr$X15 <- as.numeric(incomeDistr$X15)
+incomeDistr$X16 <- as.numeric(incomeDistr$X16)
+incomeDistr$lessThanMedian <- rowSums(incomeDistr[,c("X6","X7","X8","X9","X10","X11","X12")], na.rm=TRUE)
+incomeDistr$moreThanMedian <- rowSums(incomeDistr[,c("X13","X14","X15","X16")], na.rm=TRUE)
+incomeDistr$`total population` <- ageDistr$`total population`
+incomeDistr$`% population earning higher than median` <- incomeDistr$moreThanMedian/incomeDistr$`total population`
+incomeDistr$`% population earning lower than median` <- incomeDistr$lessThanMedian/incomeDistr$`total population`
+incomeDistr <- select(incomeDistr,c("county","% population earning higher than median","% population earning lower than median"))
+```
+
+Iowa Data Cleaning:
+```{r}
+iowa_data <- read_tsv("iowa_data.tsv")
+iowa_data <- select(iowa_data,c("county" = 1,3,6,9,12,15,18,21,24,27,30,33,36,39))
+
+iowa_data <- iowa_data %>% 
+  group_by(county) %>% 
+  summarise(Bennet_First = sum(Bennet_First),Biden_First = sum(Biden_First),Bloomberg_First = sum(Bloomberg_First),Buttigieg_First = sum(Buttigieg_First),Delaney_First = sum(Delaney_First),Gabbard_First = sum(Gabbard_First),Klobuchar_First = sum(Klobuchar_First),Patrick_First = sum(Patrick_First),Sanders_First = sum(Sanders_First),Steyer_First = sum(Steyer_First),Warren_First = sum(Warren_First),Yang_First = sum(Yang_First))
+
+iowa_data <- iowa_data[-c(16:19),]
+iowa_data <- iowa_data[-c(73),]
+```
+# Preliminary Results
+
+Race Demographic Graphs
+```{r}
+#Top Counties with Highest Percentage of White People
+most_white <- filter(raceDistr,white >= 0.985)%>%
+  top_n(20)
+
+raceDemWhite <- left_join(most_white,iowa_data,by="county")
+raceDemWhite[2:5] <- NULL
+
+raceDemWhite <- raceDemWhite%>%
+  summarise(Bennet_First = sum(Bennet_First),Biden_First = sum(Biden_First),Bloomberg_First = sum(Bloomberg_First),Buttigieg_First = sum(Buttigieg_First),Delaney_First = sum(Delaney_First),Gabbard_First = sum(Gabbard_First),Klobuchar_First = sum(Klobuchar_First),Patrick_First = sum(Patrick_First),Sanders_First = sum(Sanders_First),Steyer_First = sum(Steyer_First),Warren_First = sum(Warren_First),Yang_First = sum(Yang_First))
+
+raceDemWhite <- melt(raceDemWhite)
+names(raceDemWhite)[1] <- "candidates"
+names(raceDemWhite)[2] <- "votes"
+  
+w <- ggplot(raceDemWhite)
+w + geom_col(aes(x=candidates,y=votes)) + coord_flip() + ggtitle(label = "Top Counties with Highest Percentages of White People")
+
+#Top Counties with Highest Percentage of Black People
+most_black <- filter(raceDistr,black >= 0.005)%>%
+  top_n(20)
+
+raceDemBlack <- left_join(most_black,iowa_data,by="county")
+raceDemBlack[2:5] <- NULL
+
+raceDemBlack <- raceDemBlack%>%
+  summarise(Bennet_First = sum(Bennet_First),Biden_First = sum(Biden_First),Bloomberg_First = sum(Bloomberg_First),Buttigieg_First = sum(Buttigieg_First),Delaney_First = sum(Delaney_First),Gabbard_First = sum(Gabbard_First),Klobuchar_First = sum(Klobuchar_First),Patrick_First = sum(Patrick_First),Sanders_First = sum(Sanders_First),Steyer_First = sum(Steyer_First),Warren_First = sum(Warren_First),Yang_First = sum(Yang_First))
+
+raceDemBlack <- melt(raceDemBlack)
+names(raceDemBlack)[1] <- "candidates"
+names(raceDemBlack)[2] <- "votes"
+
+b <- ggplot(raceDemBlack)
+b + geom_col(aes(x=candidates,y=votes)) + coord_flip() + ggtitle(label = "Top Counties with Highest Percentages of Black People")
+
+#Top Counties with Highest Percentage of Asian People
+most_asian <- filter(raceDistr,asian >= 0.005)%>%
+  top_n(20)
+
+raceDemAsian <- left_join(most_asian,iowa_data,by="county")
+raceDemAsian[2:5] <- NULL
+
+raceDemAsian <- raceDemAsian%>%
+  summarise(Bennet_First = sum(Bennet_First),Biden_First = sum(Biden_First),Bloomberg_First = sum(Bloomberg_First),Buttigieg_First = sum(Buttigieg_First),Delaney_First = sum(Delaney_First),Gabbard_First = sum(Gabbard_First),Klobuchar_First = sum(Klobuchar_First),Patrick_First = sum(Patrick_First),Sanders_First = sum(Sanders_First),Steyer_First = sum(Steyer_First),Warren_First = sum(Warren_First),Yang_First = sum(Yang_First))
+
+raceDemAsian <- melt(raceDemAsian)
+names(raceDemAsian)[1] <- "candidates"
+names(raceDemAsian)[2] <- "votes"
+
+a <- ggplot(raceDemAsian)
+a + geom_col(aes(x=candidates,y=votes)) + coord_flip() + ggtitle(label = "Top Counties with Highest Percentages of Asian People")
+
+#Top Counties with Highest Percentage of Hispanic/Latino People
+most_HL <- filter(raceDistr,`hispanic/latino`>= 0.020)%>%
+  top_n(20)
+
+raceDemHL <- left_join(most_HL,iowa_data,by="county")
+raceDemHL[2:5] <- NULL
+
+raceDemHL <- raceDemHL%>%
+  summarise(Bennet_First = sum(Bennet_First),Biden_First = sum(Biden_First),Bloomberg_First = sum(Bloomberg_First),Buttigieg_First = sum(Buttigieg_First),Delaney_First = sum(Delaney_First),Gabbard_First = sum(Gabbard_First),Klobuchar_First = sum(Klobuchar_First),Patrick_First = sum(Patrick_First),Sanders_First = sum(Sanders_First),Steyer_First = sum(Steyer_First),Warren_First = sum(Warren_First),Yang_First = sum(Yang_First))
+
+raceDemHL <- melt(raceDemHL)
+names(raceDemHL)[1] <- "candidates"
+names(raceDemHL)[2] <- "votes"
+
+h <- ggplot(raceDemHL)
+h + geom_col(aes(x=candidates,y=votes)) + coord_flip() + ggtitle(label = "Top Counties with Highest Percentages of Hispanic/Latino People")
+```
+
+Age Demographic Graphs
+```{r}
+#Top Counties with Highest Percentage of Young People
+most_young <- filter(ageDistr,`% population under age 65` > 0.84)
+most_young <- most_young[order(-most_young$`% population under age 65`),]%>%
+  head(10)
+
+
+most_old <- filter(ageDistr,`% population over age 65` > 0.2)
+most_old <- most_old[order(-most_old$`% population over age 65`),]%>%
+  head(10)
+
+ageDemYoung <- left_join(most_young,iowa_data,by="county")
+ageDemYoung[2:6] <- NULL
+
+ageDemYoung <- ageDemYoung%>%
+  summarise(Bennet_First = sum(Bennet_First),Biden_First = sum(Biden_First),Bloomberg_First = sum(Bloomberg_First),Buttigieg_First = sum(Buttigieg_First),Delaney_First = sum(Delaney_First),Gabbard_First = sum(Gabbard_First),Klobuchar_First = sum(Klobuchar_First),Patrick_First = sum(Patrick_First),Sanders_First = sum(Sanders_First),Steyer_First = sum(Steyer_First),Warren_First = sum(Warren_First),Yang_First = sum(Yang_First))
+
+ageDemYoung <- melt(ageDemYoung)
+names(ageDemYoung)[1] <- "candidates"
+names(ageDemYoung)[2] <- "votes"
+
+
+y <- ggplot(ageDemYoung)
+y + geom_col(aes(x=candidates,y=votes)) + coord_flip() + ggtitle(label = "Top Counties with Highest Percentages of Young People")
+
+#Top Counties with Highest Percentage of Old People
+most_old <- filter(ageDistr,`population over age 65` > 10000)%>%
+  top_n(5)
+
+ageDemOld <- left_join(most_old,iowa_data,by="county")
+ageDemOld[2:6] <- NULL
+
+ageDemOld <- ageDemOld%>%
+  summarise(Bennet_First = sum(Bennet_First),Biden_First = sum(Biden_First),Bloomberg_First = sum(Bloomberg_First),Buttigieg_First = sum(Buttigieg_First),Delaney_First = sum(Delaney_First),Gabbard_First = sum(Gabbard_First),Klobuchar_First = sum(Klobuchar_First),Patrick_First = sum(Patrick_First),Sanders_First = sum(Sanders_First),Steyer_First = sum(Steyer_First),Warren_First = sum(Warren_First),Yang_First = sum(Yang_First))
+
+ageDemOld <- melt(ageDemOld)
+names(ageDemOld)[1] <- "candidates"
+names(ageDemOld)[2] <- "votes"
+
+o <- ggplot(ageDemOld)
+o + geom_col(aes(x=candidates,y=votes)) + coord_flip() + ggtitle(label = "Top Counties with Highest Percentages of Old People")
+
+```
+
+Income Demographic Graphs
+```{r}
+most_income <- filter(incomeDistr,`% population earning higher than median` > 0.1)
+most_income <- most_income[order(-most_income$`% population earning higher than median`),]%>%
+  head(10)
+
+incomeDemRich <- left_join(most_income,iowa_data,by="county")
+incomeDemRich[2:3] <- NULL
+
+incomeDemRich <- incomeDemRich%>%
+  summarise(Bennet_First = sum(Bennet_First),Biden_First = sum(Biden_First),Bloomberg_First = sum(Bloomberg_First),Buttigieg_First = sum(Buttigieg_First),Delaney_First = sum(Delaney_First),Gabbard_First = sum(Gabbard_First),Klobuchar_First = sum(Klobuchar_First),Patrick_First = sum(Patrick_First),Sanders_First = sum(Sanders_First),Steyer_First = sum(Steyer_First),Warren_First = sum(Warren_First),Yang_First = sum(Yang_First))
+
+incomeDemRich <- melt(incomeDemRich)
+names(incomeDemRich)[1] <- "candidates"
+names(incomeDemRich)[2] <- "votes"
+
+r <- ggplot(incomeDemRich)
+r + geom_col(aes(x=candidates,y=votes)) + coord_flip() + ggtitle(label = "Top Counties with Highest Percentages of Median Household Income Earners")
+
+
+least_income <- filter(incomeDistr,`% population earning lower than median` > 0.2)
+least_income <- least_income[order(-least_income$`% population earning lower than median`),]%>%
+  head(10)
+
+incomeDemPoor <- left_join(least_income,iowa_data,by="county")
+incomeDemPoor[2:3] <- NULL
+
+incomeDemPoor <- incomeDemPoor%>%
+  summarise(Bennet_First = sum(Bennet_First),Biden_First = sum(Biden_First),Bloomberg_First = sum(Bloomberg_First),Buttigieg_First = sum(Buttigieg_First),Delaney_First = sum(Delaney_First),Gabbard_First = sum(Gabbard_First),Klobuchar_First = sum(Klobuchar_First),Patrick_First = sum(Patrick_First),Sanders_First = sum(Sanders_First),Steyer_First = sum(Steyer_First),Warren_First = sum(Warren_First),Yang_First = sum(Yang_First))
+
+incomeDemPoor <- melt(incomeDemPoor)
+names(incomeDemPoor)[1] <- "candidates"
+names(incomeDemPoor)[2] <- "votes"
+
+p <- ggplot(incomeDemPoor)
+p + geom_col(aes(x=candidates,y=votes)) + coord_flip() + ggtitle(label = "Top Counties with Lowest Percentages of Median Household Income Earners")
+```
+

@@ -1,0 +1,95 @@
+---
+title: "Relationship Between Change in Support of Viable Candidate VS Change in Support of Other Candidates"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+```
+
+
+Mutated the idea and created columns for each candidate illustrating the number of supporters they may have gained or lost between the first and second round, then all the positive differences were converted to zeros so that only negative differences remained. This is in order to analyze relationships between the number of supporters a viable candidate gained and the number of supporters a non-viable candidate may have lost.  
+```{r}
+iowa_data <- read_tsv("./iowa_data.tsv")
+
+iowa_data <- mutate(iowa_data,
+          Bennet_Difference = Bennet_Second - Bennet_First,
+          Biden_Difference = Biden_Second - Biden_First,
+          Bloomberg_Difference = Bloomberg_Second - Bloomberg_First,
+          Buttigieg_Difference = Buttigieg_Second - Buttigieg_First,
+          Delaney_Difference = Delaney_Second - Delaney_First,
+          Gabbard_Difference = Gabbard_Second - Gabbard_First,
+          Klobuchar_Difference = Klobuchar_Second - Klobuchar_First,
+          Patrick_Difference = Patrick_Second - Patrick_First,
+          Sanders_Difference = Sanders_Second - Sanders_First,
+          Steyer_Difference = Steyer_Second - Steyer_First,
+          Warren_Difference = Warren_Second - Warren_First,
+          Yang_Difference = Yang_Second - Yang_First,
+          Other_Difference = Other_Second - Other_First,
+          Uncommitted_Difference = Uncommitted_Second - Uncommitted_First,
+          Turnout_Diff = SecondTurnout - FirstTurnout
+       )
+
+iowa_data <- mutate(rowwise(iowa_data),
+                      Bennet_Difference_Modified = -min(Bennet_Difference, 0),
+                      Biden_Difference_Modified = -min(Biden_Difference, 0),
+                      Bloomberg_Difference_Modified = -min(Bloomberg_Difference, 0),
+                      Buttigieg_Difference_Modified = -min(Buttigieg_Difference, 0),
+                      Delaney_Difference_Modified = -min(Delaney_Difference, 0),
+                      Gabbard_Difference_Modified = -min(Gabbard_Difference, 0),
+                      Klobuchar_Difference_Modified = -min(Klobuchar_Difference, 0),
+                      Patrick_Difference_Modified = -min(Patrick_Difference, 0),
+                      Sanders_Difference_Modified = -min(Sanders_Difference, 0),
+                      Steyer_Difference_Modified = -min(Steyer_Difference, 0),
+                      Warren_Difference_Modified = -min(Warren_Difference, 0),
+                      Yang_Difference_Modified = -min(Yang_Difference, 0),
+                      Other_Difference_Modified = -min(Other_Difference, 0),
+                      Uncommitted_Difference_Modified = -min(Uncommitted_Difference, 0),
+                      Turnout_Diff_Modified = -min(Turnout_Diff, 0)
+                    )
+```
+
+
+The below code and data is for precincts where Biden was a viable candidate after the first round. Here we analyze the realtionship between the number of supporters Biden may have gained and the number of supporters that all the other candidates may have gained or lost. After using a linear regression model, we see the three most significant quotients are Buttigieg's, Warren's, and Klobuchar's. All three have have positive slopes, possibly indicating there's a tendency for supporters of Buttigeg, Warren and Klobuchar to reallocate to Biden in precincts where he remained a viable candidate and the others didn't. Sanders's quotient, another significant quotient, was extremely low, implying Sanders' supporters didn't tend to reallocate with Biden much. Additionally, the scatter plot illustrate how well we are able to predict how many supporters viable candidates gain between the first and second rounds, just by knowing how many people are associated with or reallocate from univable groups. Since R-squared is only .4269, this model doesn't do a great job of explaining the variability in supporters Biden gained based on the change in supporters associated with the other candidates. 
+```{r}
+Biden_viable <- filter(iowa_data, Biden_Second > 0, Biden_Difference >= 0)
+
+m_Biden <- lm(Biden_Difference ~ Bennet_Difference_Modified + Bloomberg_Difference_Modified + Buttigieg_Difference_Modified + Delaney_Difference_Modified + Gabbard_Difference_Modified + Klobuchar_Difference_Modified + Patrick_Difference_Modified + Sanders_Difference_Modified + Steyer_Difference_Modified + Warren_Difference_Modified + Yang_Difference_Modified + Other_Difference_Modified + Uncommitted_Difference_Modified, data = Biden_viable)
+summary(m_Biden)
+tibble(y = Biden_viable$Biden_Difference, x = fitted(m_Biden)) %>% ggplot(aes(x = x, y = y)) + geom_point()
+```
+
+
+The below code and data is for precincts where Warren was a viable candidate after the first round. Here we analyze the realtionship between the number of supporters Warren may have gained and the number of supporters that all the other candidates may have gained or lost. After using a linear regression model, we see the four most significant quotients are Biden's, Buttigieg's, Klobuchar's, and Yang. All four have positive slopes, possibly indicating there's a tendency for supporters of Biden, Buttigeg, Klobuchar, and Yang to reallocate to Warren in precincts where she remained a viable candidate and the others didn't. Additionally, the scatter plot illustrate how well we are able to predict how many supporters Warren gains between the first and second rounds, just by knowing how many people are associated with or reallocate from univable groups. Since R-squared is .7059, this model does a much better job of explaining the variability in supporters Warren gained based on the change in supporters associated with the other candidates. 
+```{r}
+Warren_viable <- filter(iowa_data, Warren_Second > 0, Warren_Difference >= 0)
+
+m_Warren <- lm(Warren_Difference ~ Bennet_Difference_Modified + Biden_Difference_Modified + Bloomberg_Difference_Modified + Buttigieg_Difference_Modified + Delaney_Difference_Modified + Gabbard_Difference_Modified + Klobuchar_Difference_Modified + Patrick_Difference_Modified + Sanders_Difference_Modified + Steyer_Difference_Modified + Yang_Difference_Modified + Other_Difference_Modified + Uncommitted_Difference_Modified, data = Warren_viable)
+summary(m_Warren)
+tibble(y = Warren_viable$Warren_Difference, x = fitted(m_Warren)) %>% ggplot(aes(x = x, y = y)) + geom_point()
+```
+
+The below code and data is for precincts where Sanders was a viable candidate after the first round. Here we analyze the realtionship between the number of supporters Sanders may have gained and the number of supporters that all the other candidates may have gained or lost. After using a linear regression model, we see the four most significant quotients are Warren's, Buttigieg's, Klobuchar's, and Yang. All four have positive slopes, possibly indicating there's a tendency for supporters of Warren, Buttigeg, Klobuchar, and Yang to reallocate to Warren in precincts where he remained a viable candidate and the others didn't. However, Klobuchar's quotient was much smaller than that of the others', indicating fewer Klobuchar supporters tended to reallocate to Sanders. Additionally, the scatter plot illustrate how well we are able to predict how many supporters Sanders gains between the first and second rounds, just by knowing how many people are associated with or reallocate from univable groups. Since R-squared is .4365, this model does a poor job of explaining the variability in supporters Sanders gained based on the change in supporters associated with the other candidates. 
+```{r}
+Sanders_viable <- filter(iowa_data, Sanders_Second > 0, Sanders_Difference >= 0)
+
+m_Sanders <- lm(Sanders_Difference ~ Bennet_Difference_Modified + Biden_Difference_Modified + Bloomberg_Difference_Modified + Buttigieg_Difference_Modified + Delaney_Difference_Modified + Gabbard_Difference_Modified + Klobuchar_Difference_Modified + Patrick_Difference_Modified + Steyer_Difference_Modified + Warren_Difference_Modified + Yang_Difference_Modified + Other_Difference_Modified + Uncommitted_Difference_Modified, data = Sanders_viable)
+summary(m_Sanders)
+tibble(y = Sanders_viable$Sanders_Difference, x = fitted(m_Sanders)) %>% ggplot(aes(x = x, y = y)) + geom_point()
+```
+
+The below code and data is for precincts where Buttigieg was a viable candidate after the first round. Here we analyze the realtionship between the number of supporters Buttigieg may have gained and the number of supporters that all the other candidates may have gained or lost. After using a linear regression model, we see the four most significant quotients are Biden's, Klobuchar's, Warren's, and Yang. All four have positive slopes, possibly indicating there's a tendency for supporters of Biden, Klobuchar, Warren, and Yang to reallocate to Buttigieg in precincts where he remained a viable candidate and the others didn't. Of the four, Biden's quotient was the smallest, indicating fewer Biden supporters tended to reallocate to Buttigieg. Additionally, the scatter plot illustrate how well we are able to predict how many supporters Buttigieg gains between the first and second rounds, just by knowing how many people are associated with or reallocate from univable groups. Since R-squared is .6711, this model does a decent job of explaining the variability in supporters Sanders gained based on the change in supporters associated with the other candidates.
+```{r}
+Buttigieg_viable <- filter(iowa_data, Buttigieg_Second > 0, Buttigieg_Difference >= 0)
+
+m_Buttigieg <- lm(Buttigieg_Difference ~ Bennet_Difference_Modified + Biden_Difference_Modified + Bloomberg_Difference_Modified + Delaney_Difference_Modified + Gabbard_Difference_Modified + Klobuchar_Difference_Modified + Patrick_Difference_Modified + Sanders_Difference_Modified + Steyer_Difference_Modified + Warren_Difference_Modified + Yang_Difference_Modified + Other_Difference_Modified + Uncommitted_Difference_Modified, data = Buttigieg_viable)
+summary(m_Buttigieg)
+tibble(y = Buttigieg_viable$Buttigieg_Difference, x = fitted(m_Buttigieg)) %>% ggplot(aes(x = x, y = y)) + geom_point()
+```
+
